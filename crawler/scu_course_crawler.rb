@@ -51,13 +51,16 @@ class ScuCourseCrawler
     @courses_h = {}
     page.visit @query_url
 
+
     # prepare post hash
     post_datas = []
     index = 0
     page.all('select[name="clsid1"] option').each do |type_option|
       type_option.select_option
+      sleep 1
       _type = type_option.text
       _type_v = type_option[:value]
+      puts _type_v
 
       page.all('select[name="clsid02"] option').each do |department_option|
         department_option.select_option
@@ -86,7 +89,9 @@ class ScuCourseCrawler
 
     # refresh_page
     @cookies = Hash[page.driver.browser.cookies.map {|k, v| h = v.instance_variable_get("@attributes"); [h["name"], h["value"]]}]
+    puts @cookies
 
+    # post_datas.select{|h| h[:_department].include? '經濟學系'}.each_with_index do |post_data, index|
     post_datas.each_with_index do |post_data, index|
       print "#{index} / #{post_datas.count}\n"
 
@@ -112,9 +117,8 @@ class ScuCourseCrawler
 
       doc = Nokogiri::HTML(@ic.iconv(r))
       if doc.text.include?('請於 15 分鐘內登入系統')
-        print "流量引爆，休息 15 分鐘"
-        sleep 910
-        refresh_page
+        puts "流量引爆，休息一下吧"
+        sleep 45
         redo
       end
 
@@ -152,13 +156,21 @@ class ScuCourseCrawler
         @threads.count < ( (ENV['MAX_THREADS'] && ENV['MAX_THREADS'].to_i) || 30)
       )
       @threads << Thread.new do
-        puts "#{index} / #{@courses_h.keys.count}"
+        next if not course[:url]
+
         begin
           r = RestClient.get course[:url]
         rescue
-          next
+          sleep 45
+          redo
         end
         doc = Nokogiri::HTML(@ic.iconv r)
+
+        if not doc.text.include?('東吳大學教師授課計劃表')
+          puts "流量引爆，休息一下吧"
+          sleep 45
+          redo
+        end
 
         m = doc.xpath('//comment()').text.gsub(/\r\n\t/, ' ').match(/Classroom：(.+)\<\/font/)
         location = m && m[1].strip || nil
@@ -203,6 +215,8 @@ class ScuCourseCrawler
         @courses_h[code][:location_9] = course_locations[8]
 
         @after_each_proc.call(course: @courses_h[code]) if @after_each_proc
+
+        print "#{index} / #{@courses_h.keys.count}\n"
       end
     end # end Thread do
   end
