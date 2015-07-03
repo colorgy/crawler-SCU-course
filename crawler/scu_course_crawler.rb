@@ -11,7 +11,6 @@ require 'thread'
 require 'thwait'
 
 class ScuCourseCrawler
-  # include CrawlerRocks::DSL
   include Capybara::DSL
   include RestClient
 
@@ -31,7 +30,6 @@ class ScuCourseCrawler
     @query_url = "http://web.sys.scu.edu.tw/class401.asp"
     @result_url = "http://web.sys.scu.edu.tw/class42.asp"
 
-
     @year = params && params["year"].to_i || year
     @term = params && params["term"].to_i || term
     @update_progress_proc = update_progress
@@ -45,7 +43,8 @@ class ScuCourseCrawler
     Capybara.current_driver = :poltergeist
 
     @ic = Iconv.new("utf-8//translit//IGNORE","big5")
-    @ic2 = Iconv.new("big5//translit//IGNORE","utf-8")
+    @ic2 = Iconv.new("big5","utf-8")
+    @ic3 = Iconv.new("utf-8//IGNORE","utf-8")
   end
 
   def courses
@@ -85,33 +84,39 @@ class ScuCourseCrawler
 
     puts "parse datas..."
 
-    refresh_page
-    post_datas.each_with_index do |post_data, index|
-      puts "#{index} / #{post_datas.count}"
-      r = RestClient.post(@result_url, post_data.merge({
-        syear: @year-1911,
-        smester: @term
-      }), cookies: @cookies) do |response, request, result, &block|
-      if [500].include? response.code
-        puts "500 Internal Error"
-        next
-      else
-        response.return!(request, result, &block)
-      end
-    end
+    # refresh_page
+    @cookies = Hash[page.driver.browser.cookies.map {|k, v| h = v.instance_variable_get("@attributes"); [h["name"], h["value"]]}]
 
-      doc = Nokogiri::HTML(@ic.iconv(r))
-      if doc.css('table tr')[1..-1].nil?
-        refresh_page
-        @redo_count ||= 0
-        @redo_count += 1
-        if @redo_count < 10
-          redo
-        else
-          @redo_count = 0
+    post_datas.each_with_index do |post_data, index|
+      print "#{index} / #{post_datas.count}\n"
+
+      r = RestClient.post( @result_url, {
+          clsid1: post_data[:clsid1],
+          clsid02: post_data[:clsid02],
+          clsid34: post_data[:clsid34],
+          syear: (@year-1911).to_s,
+          smester: @term.to_s
+        },
+        cookies: @cookies,
+        verify_ssl: false
+      ) do |response, request, result, &block|
+        if [500].include? response.code
+          puts "500 Internal Error"
           next
+        elsif [301, 302, 307].include? response.code
+          response.follow_redirection(request, result, &block)
+        else
+          response.return!(request, result, &block)
         end
       end
+
+      doc = Nokogiri::HTML(@ic.iconv(r))
+      if doc.text.include?('請於 15 分鐘內登入系統')
+        sleep 910
+        refresh_page
+        redo
+      end
+
       doc.css('table tr')[1..-1] && doc.css('table tr')[1..-1].each do |row|
         datas = row.css('td')
         url = !datas[3].css('a').empty? && datas[3].css('a')[0][:href].prepend("http://web.sys.scu.edu.tw")
@@ -130,15 +135,13 @@ class ScuCourseCrawler
           credits: datas[7] && datas[7].text.to_i,
           lecturer: datas[10] && datas[10].text.strip.gsub(/ /, '')
         }
-
       end
     end # post_datas.each do
     @threads = []
     parse_detail
     ThreadsWait.all_waits(*@threads)
 
-    @courses = @courses_h.map{|k, v| v}
-    File.write('courses.json', JSON.pretty_generate(@courses))
+    @courses_h.values
   end # end courses
 
   def parse_detail
@@ -197,6 +200,8 @@ class ScuCourseCrawler
         @courses_h[code][:location_7] = course_locations[6]
         @courses_h[code][:location_8] = course_locations[7]
         @courses_h[code][:location_9] = course_locations[8]
+
+        @after_each_proc.call(course: @courses_h[code]) if @after_each_proc
       end
     end # end Thread do
   end
@@ -215,5 +220,5 @@ class ScuCourseCrawler
   end
 end
 
-cc = ScuCourseCrawler.new(year: 2014, term: 1)
-cc.courses
+# cc = ScuCourseCrawler.new(year: 2015, term: 1)
+# File.write('scu_courses.json', JSON.pretty_generate(cc.courses))
