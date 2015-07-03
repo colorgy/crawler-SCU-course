@@ -42,7 +42,7 @@ class ScuCourseCrawler
     Capybara.javascript_driver = :poltergeist
     Capybara.current_driver = :poltergeist
 
-    @ic = Iconv.new("utf-8//translit//IGNORE","big5")
+    @ic = Iconv.new("utf-8//IGNORE//translit","big5")
     @ic2 = Iconv.new("big5","utf-8")
     @ic3 = Iconv.new("utf-8//IGNORE","utf-8")
   end
