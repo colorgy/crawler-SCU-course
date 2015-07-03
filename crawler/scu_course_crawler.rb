@@ -112,6 +112,7 @@ class ScuCourseCrawler
 
       doc = Nokogiri::HTML(@ic.iconv(r))
       if doc.text.include?('請於 15 分鐘內登入系統')
+        print "流量引爆，休息 15 分鐘"
         sleep 910
         refresh_page
         redo
