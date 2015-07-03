@@ -117,7 +117,7 @@ class ScuCourseCrawler
 
       doc = Nokogiri::HTML(@ic.iconv(r))
       if doc.text.include?('請於 15 分鐘內登入系統')
-        puts "流量引爆，休息一下吧"
+        print "流量引爆，休息一下吧\n"
         sleep 45
         redo
       end
@@ -167,7 +167,7 @@ class ScuCourseCrawler
         doc = Nokogiri::HTML(@ic.iconv r)
 
         if not doc.text.include?('東吳大學教師授課計劃表')
-          puts "流量引爆，休息一下吧"
+          print "流量引爆，休息一下吧\n"
           sleep 45
           redo
         end
