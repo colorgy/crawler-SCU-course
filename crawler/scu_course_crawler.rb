@@ -125,13 +125,15 @@ class ScuCourseCrawler
       doc.css('table tr')[1..-1] && doc.css('table tr')[1..-1].each do |row|
         datas = row.css('td')
         url = !datas[3].css('a').empty? && datas[3].css('a')[0][:href].prepend("http://web.sys.scu.edu.tw")
-        code = datas[2] && "#{@year}-#{@term}-#{datas[2].text.strip.gsub(/ /, '')}"
+        general_code = datas[2].text.strip.gsub(/ /, '')
+        code = datas[2] && "#{@year}-#{@term}-#{general_code}"
         # TODOs: parse detail page
 
         @courses_h[code] ||= {
           year: @year,
           term: @term,
           code: code,
+          general_code: general_code,
           department: post_data[:_department].match(/[^\d]+/)[0],
           name: datas[3] && datas[3].text.strip,
           url: url,
