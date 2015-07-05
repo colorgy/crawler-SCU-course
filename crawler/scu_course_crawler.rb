@@ -158,7 +158,10 @@ class ScuCourseCrawler
         @threads.count < ( (ENV['MAX_THREADS'] && ENV['MAX_THREADS'].to_i) || 30)
       )
       @threads << Thread.new do
-        next if not course[:url]
+        if not course[:url]
+          @after_each_proc.call(course: @courses_h[code]) if @after_each_proc
+          next
+        end
 
         begin
           r = RestClient.get course[:url]
