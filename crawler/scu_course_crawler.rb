@@ -14,6 +14,23 @@ class ScuCourseCrawler
   include Capybara::DSL
   include RestClient
 
+  PERIODS = {
+    "1" => 1,
+    "2" => 2,
+    "3" => 3,
+    "4" => 4,
+    "E" => 5,
+    "5" => 6,
+    "6" => 7,
+    "7" => 8,
+    "8" => 9,
+    "9" => 10,
+    "A" => 11,
+    "B" => 12,
+    "C" => 13,
+    "D" => 14,
+  }
+
   DAYS = {
     "一" => 1,
     "二" => 2,
@@ -186,7 +203,7 @@ class ScuCourseCrawler
         doc.css('td:contains("星期節次")').text.split('：').last.scan(/(?<d>[#{DAYS.keys.join}])(?<ps>\d+)/).each do |m|
           m[1].split('').each do |p|
             course_days << DAYS[m[0]]
-            course_periods << p.to_i
+            course_periods << PERIODS[p]
             course_locations << location
           end
         end
